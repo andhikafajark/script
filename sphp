@@ -1,16 +1,29 @@
 #!/bin/bash
 # Creator: Phil Cook
 # Modified: Andy Miller
+# Adopted for M1 Macs: Vadym Khomakha
+# Release date: July 24, 2021
+# Version: 1.02
+
 osx_major_version=$(sw_vers -productVersion | cut -d. -f1)
 osx_minor_version=$(sw_vers -productVersion | cut -d. -f2)
 osx_patch_version=$(sw_vers -productVersion | cut -d. -f3)
 osx_patch_version=${osx_patch_version:-0}
 osx_version=$((${osx_major_version} * 10000 + ${osx_minor_version} * 100 + ${osx_patch_version}))
-homebrew_path=$(brew --prefix)
-brew_prefix=$(brew --prefix | sed 's#/#\\\/#g')
 
-brew_array=("5.6","7.0","7.1","7.2","7.3","7.4","8.0","8.1")
-php_array=("php@5.6" "php@7.0" "php@7.1" "php@7.2" "php@7.3" "php@7.4" "php@8.0" "php@8.1")
+if [[ `uname -m` == 'arm64' ]]; then
+  architecture="M1"
+else 
+  architecture="Intel"
+fi
+
+echo "Architecture:  "$architecture
+
+brew_prefix=$(brew --prefix | sed 's#/#\\\/#g')
+brew_path=$(brew --prefix)
+
+brew_array=("5.6","7.0","7.1","7.2","7.3","7.4","8.0","8.1","8.2")
+php_array=("php@5.6" "php@7.0" "php@7.1" "php@7.2" "php@7.3" "php@7.4" "php@8.0" "php@8.1" "php@8.2")
 php_installed_array=()
 php_version="php@$1"
 php_opt_path="$brew_prefix\/opt\/"
@@ -39,6 +52,7 @@ fi
 php_module="$php5_module"
 apache_php_lib_path="$apache_php5_lib_path"
 
+
 simple_php_version=$(echo "$php_version" | sed 's/^php@//' | sed 's/\.//')
 if [[ simple_php_version -ge 70 && simple_php_version -lt 80 ]]; then
     php_module="$php7_module"
@@ -49,16 +63,19 @@ elif [[ simple_php_version -ge 80 ]]; then
 fi
 
 apache_change=1
-apache_conf_path="$homebrew_path/etc/httpd/httpd.conf"
+apache_conf_path="$brew_path/etc/httpd/httpd.conf"
+
 apache_php_mod_path="$php_opt_path$php_version$apache_php_lib_path"
 
 # What versions of php are installed via brew
 for i in ${php_array[*]}; do
     version=$(echo "$i" | sed 's/^php@//')
-    if [[ -d "$homebrew_path/etc/php/$version" ]]; then
+    if [[ -d "$brew_path/etc/php/$version" ]]; then
         php_installed_array+=("$i")
     fi
 done
+
+echo $php_version
 
 # Check that the requested version is supported
 if [[ " ${php_array[*]} " == *"$php_version"* ]]; then
