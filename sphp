@@ -22,9 +22,23 @@ echo "Architecture:  "$architecture
 brew_prefix=$(brew --prefix | sed 's#/#\\\/#g')
 brew_path=$(brew --prefix)
 
-brew_array=("5.6","7.0","7.1","7.2","7.3","7.4","8.0","8.1","8.2")
-php_array=("php@5.6" "php@7.0" "php@7.1" "php@7.2" "php@7.3" "php@7.4" "php@8.0" "php@8.1" "php@8.2")
+brew_array=("5.6","7.0","7.1","7.2","7.3","7.4","8.0","8.1","8.2","8.3","8.4","8.5")
+php_array=("php@5.6" "php@7.0" "php@7.1" "php@7.2" "php@7.3" "php@7.4" "php@8.0" "php@8.1" "php@8.2" "php@8.3" "php@8.4" "php@8.5")
 php_installed_array=()
+
+# Resolve the brew formula for a php@X.Y name. The newest PHP is shipped by
+# brew as the unversioned "php" formula (no php@X.Y keg) until a newer one lands.
+brew_formula() {
+    local name="$1"
+    local ver="${name#php@}"
+    if [[ ! -d "$brew_path/opt/$name" && -x "$brew_path/opt/php/bin/php-config" ]]; then
+        if [[ "$("$brew_path/opt/php/bin/php-config" --version | cut -d. -f1,2)" == "$ver" ]]; then
+            echo "php"
+            return
+        fi
+    fi
+    echo "$name"
+}
 php_version="php@$1"
 php_opt_path="$brew_prefix\/opt\/"
 
@@ -65,7 +79,7 @@ fi
 apache_change=1
 apache_conf_path="$brew_path/etc/httpd/httpd.conf"
 
-apache_php_mod_path="$php_opt_path$php_version$apache_php_lib_path"
+apache_php_mod_path="$php_opt_path$(brew_formula "$php_version")$apache_php_lib_path"
 
 # What versions of php are installed via brew
 for i in ${php_array[*]}; do
@@ -86,9 +100,9 @@ if [[ " ${php_array[*]} " == *"$php_version"* ]]; then
         echo "Switching to $php_version"
         echo "Switching your shell"
         for i in ${php_installed_array[@]}; do
-            brew unlink $i
+            brew unlink "$(brew_formula "$i")"
         done
-        brew link --force "$php_version"
+        brew link --force "$(brew_formula "$php_version")"
 
         # Switch apache
         if [[ $apache_change -eq 1 ]]; then
@@ -105,7 +119,7 @@ if [[ " ${php_array[*]} " == *"$php_version"* ]]; then
                     loop_php_module="$php8_module"
                     loop_apache_php_lib_path="$apache_php8_lib_path" 
                 fi
-                apache_module_string="LoadModule $loop_php_module $php_opt_path$j$loop_apache_php_lib_path"
+                apache_module_string="LoadModule $loop_php_module $php_opt_path$(brew_formula "$j")$loop_apache_php_lib_path"
                 comment_apache_module_string="#$apache_module_string"
 
                 # If apache module string within apache conf
@@ -133,7 +147,7 @@ $comment_apache_module_string\\
 
         echo "All done!"
     else
-        echo "Sorry, but $php_version is not installed via brew. Install by running: brew install $php_version"
+        echo "Sorry, but $php_version is not installed via brew. Install by running: brew install $(brew_formula "$php_version")"
     fi
 else
     echo "Unknown version of PHP. PHP Switcher can only handle arguments of:" ${brew_array[@]}
